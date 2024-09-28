@@ -3,6 +3,7 @@ const app = express();
 const bodyParser = require("body-parser");
 const connection = require("./database/database");
 const Pergunta = require("./database/Pergunta");
+const Resposta = require("./database/Resposta");
 //Database
 connection
   .authenticate()
@@ -20,14 +21,11 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 // rotas
 app.get("/", (requisicao, resposta) => {
-  Pergunta.findAll({raw: true, order: [
-    ['id', 'DESC']
-  ]}).then((perguntas) => {
+  Pergunta.findAll({ raw: true, order: [["id", "DESC"]] }).then((perguntas) => {
     resposta.render("index", {
-        perguntas: perguntas
+      perguntas: perguntas,
     });
   });
-  
 });
 
 app.get("/perguntar", (requisicao, resposta) => {
@@ -42,6 +40,40 @@ app.post("/salvarpergunta", (requisicao, resposta) => {
     descricao: descricao,
   }).then(() => {
     resposta.redirect("/");
+  });
+});
+
+app.get("/pergunta/:id", (requisicao, resposta) => {
+  const id = requisicao.params.id;
+  Pergunta.findOne({
+    where: { id: id },
+  }).then((pergunta) => {
+    if (pergunta != undefined) {
+      Resposta.findAll({
+        where: { perguntaId: pergunta.id },
+        order: [
+            ["id", "DESC"]
+    ],
+      }).then((respostas) => {
+        resposta.render("pergunta", {
+          pergunta: pergunta,
+          respostas: respostas,
+        });
+      });
+    } else {
+      resposta.redirect("/");
+    }
+  });
+});
+
+app.post("/responder", (requisicao, resposta) => {
+  let corpo = requisicao.body.corpo;
+  let perguntaId = requisicao.body.pergunta;
+  Resposta.create({
+    corpo: corpo,
+    perguntaId: perguntaId,
+  }).then(() => {
+    resposta.redirect(`/pergunta/${perguntaId}`);
   });
 });
 
